@@ -1,28 +1,30 @@
 const { neon } = require("@neondatabase/serverless");
 const { buildHistoryAnalytics } = require("../../lib/reportAnalytics");
+const { buildPdfReport } = require("../../lib/buildPdfReport");
+const { generateResearchReport } = require("../../lib/generateResearchReport");
 
 exports.handler = async function handler(event) {
   try {
     if (event.httpMethod !== "GET") {
-      return response(405, { error: "Method not allowed." });
+      return responseJson(405, { error: "Method not allowed." });
     }
 
     const id = event.queryStringParameters?.id;
     if (!id) {
-      return response(400, { error: "Missing report request id." });
+      return responseJson(400, { error: "Missing report request id." });
     }
 
     const sql = neon(process.env.DATABASE_URL);
 
     const requests = await sql`
-      SELECT id, ticker, period, status, original_filename, row_count, created_at
+      SELECT id, ticker, period, status, original_filename, row_count, created_at, ai_report, report_title
       FROM report_requests
       WHERE id = ${id}
       LIMIT 1
     `;
 
     if (!requests.length) {
-      return response(404, { error: "Report request not found." });
+      return responseJson(404, { error: "Report request not found." });
     }
 
     const request = requests[0];
@@ -36,26 +38,67 @@ exports.handler = async function handler(event) {
 
     const analytics = buildHistoryAnalytics(history);
 
-    return response(200, {
+    const narrative = {
+      headline: `${request.ticker} preliminary quantitative summary`,
+      thesis: analytics.investmentView,
+      targetRange: {
+        low: analytics.impliedRangeLow,
+        base: analytics.impliedRangeBase,
+        high: analytics.impliedRangeHigh,
+      },
+    };
+
+    let aiReport = request.ai_report || "";
+    if (!aiReport) {
+      try {
+        aiReport = await generateResearchReport({
+          ticker: request.ticker,
+          analytics,
+        });
+      } catch (err) {
+        aiReport =
+          "AI narrative was unavailable during PDF export. The quantitative report has still been generated successfully.";
+      }
+    }
+
+    const pdfBuffer = await buildPdfReport({
       request,
       analytics,
-      narrative: {
-        headline: `${request.ticker} preliminary quantitative summary`,
-        thesis:
-          analytics.investmentView,
-        targetRange: {
-          low: analytics.impliedRangeLow,
-          base: analytics.impliedRangeBase,
-          high: analytics.impliedRangeHigh,
-        },
-      },
+      narrative,
+      aiReport,
     });
+
+    const fileName = `${request.ticker || "report"}-research-report.pdf`;
+
+    await sql`
+      INSERT INTO report_exports (report_request_id, export_type, file_name)
+      VALUES (${id}, 'pdf', ${fileName})
+    `;
+
+    await sql`
+      UPDATE report_requests
+      SET pdf_generated_at = NOW()
+      WHERE id = ${id}
+    `;
+
+    return {
+      statusCode: 200,
+      isBase64Encoded: true,
+      headers: {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `attachment; filename="${fileName}"`,
+        "Cache-Control": "no-store",
+      },
+      body: pdfBuffer.toString("base64"),
+    };
   } catch (error) {
-    return response(500, { error: error.message || "Server error." });
+    return responseJson(500, {
+      error: error.message || "Server error.",
+    });
   }
 };
 
-function response(statusCode, body) {
+function responseJson(statusCode, body) {
   return {
     statusCode,
     headers: {
