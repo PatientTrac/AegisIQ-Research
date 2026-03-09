@@ -358,6 +358,34 @@ function normalizeAppendixImages(
     );
 }
 
+async function toUint8Array(
+  result: Uint8Array | ReadableStream<Uint8Array>,
+): Promise<Uint8Array> {
+  if (result instanceof Uint8Array) {
+    return result;
+  }
+
+  const reader = result.getReader();
+  const chunks: Uint8Array[] = [];
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    if (value) chunks.push(value);
+  }
+
+  const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+  const merged = new Uint8Array(totalLength);
+
+  let offset = 0;
+  for (const chunk of chunks) {
+    merged.set(chunk, offset);
+    offset += chunk.length;
+  }
+
+  return merged;
+}
+
 export function mapReportToPdfData(
   payload: ExistingReportPayload,
 ): EquityResearchPdfData {
@@ -482,7 +510,8 @@ export async function renderEquityResearchPdf(
 ): Promise<Uint8Array> {
   const data = mapReportToPdfData(payload);
   const instance = pdf(<EquityResearchPdfDocument data={data} />);
-  return instance.toBuffer();
+  const result = await instance.toBuffer();
+  return toUint8Array(result);
 }
 
 export async function renderEquityResearchPdfBlob(
@@ -503,9 +532,7 @@ export async function renderEquityResearchPdfString(
 export async function renderEquityResearchPdfStream(
   payload: ExistingReportPayload,
 ): Promise<Uint8Array> {
-  const data = mapReportToPdfData(payload);
-  const instance = pdf(<EquityResearchPdfDocument data={data} />);
-  return instance.toBuffer();
+  return renderEquityResearchPdf(payload);
 }
 
 export default renderEquityResearchPdf;
