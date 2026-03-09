@@ -1,8 +1,8 @@
 const { neon } = require("@neondatabase/serverless");
 const { buildHistoryAnalytics } = require("../../lib/reportAnalytics");
 const { generateResearchReport } = require("../../lib/generateResearchReport");
-const { buildSimpleDcf } = require("../../lib/dcfModel");
 const { buildComparableSet } = require("../../lib/compsModel");
+const { runValuationEngine } = require("../../lib/valuationEngine");
 
 exports.handler = async function (event) {
   try {
@@ -33,44 +33,57 @@ exports.handler = async function (event) {
 
     const analytics = buildHistoryAnalytics(history);
 
-    const dcf = buildSimpleDcf({
-      lastClose: analytics.lastClose,
-    });
-
     const comps = buildComparableSet({
       ticker: request.ticker,
       lastClose: analytics.lastClose,
     });
 
+    const financials = {
+      revenue: request.market_cap ? Number(request.market_cap) / 5 : null,
+      shares_outstanding:
+        request.market_cap && (request.live_price || analytics.lastClose)
+          ? Number(request.market_cap) / Number(request.live_price || analytics.lastClose)
+          : null,
+      net_debt: 0,
+      revenue_growth_rate: 0.08,
+      ebit_margin: 0.22,
+      tax_rate: 0.21,
+      da_percent: 0.04,
+      capex_percent: 0.05,
+      nwc_percent: 0.02,
+      discount_rate: 0.1,
+      terminal_growth_rate: 0.025,
+    };
+
+    const valuation = runValuationEngine({
+      ticker: request.ticker,
+      analytics,
+      marketData: {
+        live_price: request.live_price,
+        market_cap: request.market_cap,
+      },
+      financials,
+      compsData: {
+        averages: comps.averages,
+      },
+    });
+
     const aiReport = await generateResearchReport({
       ticker: request.ticker,
       analytics,
-      dcf,
+      dcf: valuation.dcf,
       comps,
+      valuation,
     });
-
-    const analystRating =
-      analytics.percentChange > 15 && analytics.sma20 > analytics.sma50
-        ? "Buy"
-        : analytics.percentChange >= 0
-        ? "Hold"
-        : "Reduce";
-
-    const targetLow = analytics.impliedRangeLow;
-    const targetBase =
-      dcf.impliedValuePerShare && Number.isFinite(Number(dcf.impliedValuePerShare))
-        ? Number(dcf.impliedValuePerShare)
-        : analytics.impliedRangeBase;
-    const targetHigh = analytics.impliedRangeHigh;
 
     await sql`
       UPDATE report_requests
       SET
         ai_report = ${aiReport},
-        analyst_rating = ${analystRating},
-        target_low = ${targetLow},
-        target_base = ${targetBase},
-        target_high = ${targetHigh},
+        analyst_rating = ${valuation.rating},
+        target_low = ${valuation.targetRange.low},
+        target_base = ${valuation.targetRange.base},
+        target_high = ${valuation.targetRange.high},
         status = 'report_generated'
       WHERE id = ${id}
     `;
@@ -97,14 +110,11 @@ exports.handler = async function (event) {
     return response(200, {
       report: aiReport,
       analytics,
-      dcf,
+      dcf: valuation.dcf,
       comps,
-      rating: analystRating,
-      targetRange: {
-        low: targetLow,
-        base: targetBase,
-        high: targetHigh,
-      },
+      valuation,
+      rating: valuation.rating,
+      targetRange: valuation.targetRange,
     });
   } catch (error) {
     return response(500, { error: error.message });
