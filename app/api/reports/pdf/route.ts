@@ -3,7 +3,7 @@ import {
   mapReportToPdfData,
   renderEquityResearchPdf,
   type ExistingReportPayload,
-} from '@/lib/pdf/export-report';
+} from '../../../../lib/pdf/export-report';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
