@@ -374,7 +374,10 @@ export function mapReportToPdfData(
   const companyName = asString(payload.companyName ?? payload.company, 'Unknown Company');
   const ticker = asString(payload.ticker ?? payload.symbol, 'N/A');
   const exchange = asNullableString(payload.exchange);
-  const reportDate = asString(payload.reportDate ?? payload.asOfDate, new Date().toISOString().slice(0, 10));
+  const reportDate = asString(
+    payload.reportDate ?? payload.asOfDate,
+    new Date().toISOString().slice(0, 10),
+  );
 
   return {
     themeId: asNullableString(payload.themeId) ?? 'toon-gamma',
@@ -388,7 +391,9 @@ export function mapReportToPdfData(
 
     analystLabel: asNullableString(payload.analystLabel ?? payload.analyst),
     firmName: asNullableString(payload.firmName ?? payload.publisher) ?? 'AegisIQ Limited',
-    contactEmail: asNullableString(payload.contactEmail ?? payload.email) ?? 'analysis@aegisiqfintech.com',
+    contactEmail:
+      asNullableString(payload.contactEmail ?? payload.email) ??
+      'analysis@aegisiqfintech.com',
     socialHandle: asNullableString(payload.socialHandle),
     jurisdiction: asNullableString(payload.jurisdiction),
 
