@@ -1,30 +1,44 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useUser } from "@clerk/nextjs";
 
 export default function ReportPage({ params }) {
+  const { user, isLoaded } = useUser();
   const [data, setData] = useState(null);
   const [aiReport, setAiReport] = useState("");
   const [dcf, setDcf] = useState(null);
   const [valuation, setValuation] = useState(null);
-  const [comps, setComps] = useState(null);
   const [rating, setRating] = useState("");
   const [targetRange, setTargetRange] = useState(null);
   const [loadingAI, setLoadingAI] = useState(false);
+  const [loadingAnalyst, setLoadingAnalyst] = useState(false);
   const [loadingPDF, setLoadingPDF] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [refreshingMarket, setRefreshingMarket] = useState(false);
   const [runningValuation, setRunningValuation] = useState(false);
+  const [error, setError] = useState("");
 
   const id = params.id;
 
   useEffect(() => {
-    loadReport();
-  }, []);
+    if (isLoaded && user?.id) {
+      loadReport();
+    }
+  }, [isLoaded, user?.id]);
 
   async function loadReport() {
-    const res = await fetch(`/.netlify/functions/get-report-summary?id=${id}`);
+    setError("");
+    const res = await fetch(
+      `/.netlify/functions/get-report-summary?id=${id}&userId=${encodeURIComponent(user.id)}`
+    );
     const json = await res.json();
+
+    if (!res.ok) {
+      setError(json.error || "Unable to load report.");
+      return;
+    }
+
     setData(json);
     setAiReport(json.savedReport || "");
     setRating(json.request?.analyst_rating || "");
@@ -62,6 +76,23 @@ export default function ReportPage({ params }) {
     }
   }
 
+  async function runAiAnalyst() {
+    try {
+      setLoadingAnalyst(true);
+      const res = await fetch(`/.netlify/functions/run-ai-analyst?id=${id}`, {
+        method: "GET",
+      });
+      const json = await res.json();
+      setValuation(json.valuation || null);
+      setDcf(json.valuation?.dcf || null);
+      setRating(json.valuation?.rating || "");
+      setTargetRange(json.valuation?.targetRange || null);
+      await loadReport();
+    } finally {
+      setLoadingAnalyst(false);
+    }
+  }
+
   async function generateAIReport() {
     try {
       setLoadingAI(true);
@@ -69,7 +100,6 @@ export default function ReportPage({ params }) {
       const json = await res.json();
       setAiReport(json.report || "No report generated.");
       setDcf(json.dcf || null);
-      setComps(json.comps || null);
       setValuation(json.valuation || null);
       setRating(json.rating || "");
       setTargetRange(json.targetRange || null);
@@ -103,17 +133,19 @@ export default function ReportPage({ params }) {
     }
   }
 
-  if (!data) {
-    return (
-      <main style={pageStyle}>
-        <div style={cardStyle}>
-          <h2>Loading report...</h2>
-        </div>
-      </main>
-    );
+  if (!isLoaded) {
+    return <main style={pageStyle}><div style={cardStyle}><h2>Loading...</h2></div></main>;
   }
 
-  const { request, analytics, narrative, exports, peers } = data;
+  if (error) {
+    return <main style={pageStyle}><div style={cardStyle}><h2>{error}</h2></div></main>;
+  }
+
+  if (!data) {
+    return <main style={pageStyle}><div style={cardStyle}><h2>Loading report...</h2></div></main>;
+  }
+
+  const { request, analytics, narrative } = data;
 
   return (
     <main style={pageStyle}>
@@ -142,13 +174,6 @@ export default function ReportPage({ params }) {
             <Metric label="Daily Change" value={formatPercent(request.price_change_pct)} />
             <Metric label="Market Cap" value={formatMoney(request.market_cap)} />
           </div>
-
-          <div style={gridStyle}>
-            <Metric label="Sector" value={request.sector || "—"} />
-            <Metric label="Industry" value={request.industry || "—"} />
-            <Metric label="Exchange" value={request.exchange || "—"} />
-            <Metric label="Updated" value={formatDateTime(request.market_data_updated_at)} />
-          </div>
         </section>
 
         <section style={cardStyle}>
@@ -173,23 +198,56 @@ export default function ReportPage({ params }) {
           ) : null}
         </section>
 
-        <section style={gridStyle}>
-          <Metric label="First Close" value={formatMoney(analytics.firstClose)} />
-          <Metric label="Last Close" value={formatMoney(analytics.lastClose)} />
-          <Metric label="Return %" value={formatPercent(analytics.percentChange)} />
-          <Metric label="Volatility" value={formatPercent(analytics.volatilityAnnualized)} />
-        </section>
+        <section style={cardStyle}>
+          <div style={sectionHeaderStyle}>
+            <h2 style={{ margin: 0 }}>AI Analyst Engine</h2>
+            <button onClick={runAiAnalyst} style={primaryButtonStyle}>
+              {loadingAnalyst ? "Generating..." : "Run AI Analyst Engine"}
+            </button>
+          </div>
 
-        <section style={gridStyle}>
-          <Metric label="SMA 20" value={formatMoney(analytics.sma20)} />
-          <Metric label="SMA 50" value={formatMoney(analytics.sma50)} />
-          <Metric label="Highest High" value={formatMoney(analytics.highMax)} />
-          <Metric label="Lowest Low" value={formatMoney(analytics.lowMin)} />
+          <div style={{ display: "grid", gap: 20 }}>
+            <div>
+              <h3 style={subTitleStyle}>Investment Thesis</h3>
+              <p style={bodyTextStyle}>{request.ai_thesis || "No AI thesis generated yet."}</p>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+              <div>
+                <h3 style={subTitleStyle}>Key Risks</h3>
+                {request.ai_risks?.length ? (
+                  <ul style={listStyle}>
+                    {request.ai_risks.map((item, idx) => <li key={idx}>{item}</li>)}
+                  </ul>
+                ) : (
+                  <p style={bodyTextStyle}>No risk set generated yet.</p>
+                )}
+              </div>
+
+              <div>
+                <h3 style={subTitleStyle}>Catalysts</h3>
+                {request.ai_catalysts?.length ? (
+                  <ul style={listStyle}>
+                    {request.ai_catalysts.map((item, idx) => <li key={idx}>{item}</li>)}
+                  </ul>
+                ) : (
+                  <p style={bodyTextStyle}>No catalyst set generated yet.</p>
+                )}
+              </div>
+            </div>
+
+            <div>
+              <h3 style={subTitleStyle}>Recommendation Summary</h3>
+              <p style={bodyTextStyle}>
+                {request.ai_recommendation_summary || "No recommendation summary generated yet."}
+              </p>
+            </div>
+          </div>
         </section>
 
         <section style={cardStyle}>
           <h2 style={{ marginTop: 0 }}>Initial Thesis</h2>
-          <p style={{ lineHeight: 1.7, color: "#24364f" }}>
+          <p style={bodyTextStyle}>
             {narrative?.thesis || "No thesis available yet."}
           </p>
 
@@ -210,63 +268,6 @@ export default function ReportPage({ params }) {
             <a href="/reports" style={dashboardLinkStyle}>Published Reports</a>
           </div>
         </section>
-
-        {peers?.length ? (
-          <section style={cardStyle}>
-            <h2 style={{ marginTop: 0 }}>Automatic Peer Selection</h2>
-            <div style={{ overflowX: "auto" }}>
-              <table style={tableStyle}>
-                <thead>
-                  <tr>
-                    <th>Ticker</th>
-                    <th>Name</th>
-                    <th>Sector</th>
-                    <th>Industry</th>
-                    <th>Market Cap</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {peers.map((peer) => (
-                    <tr key={peer.id}>
-                      <td>{peer.peer_ticker}</td>
-                      <td>{peer.peer_name || "—"}</td>
-                      <td>{peer.peer_sector || "—"}</td>
-                      <td>{peer.peer_industry || "—"}</td>
-                      <td>{formatMoney(peer.peer_market_cap)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
-        ) : null}
-
-        {dcf ? (
-          <section style={cardStyle}>
-            <h2 style={{ marginTop: 0 }}>DCF Snapshot</h2>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 16 }}>
-              <Metric label="Enterprise Value" value={formatMoney(dcf.enterpriseValue)} />
-              <Metric label="Equity Value" value={formatMoney(dcf.equityValue)} />
-              <Metric label="Implied Value / Share" value={formatMoney(dcf.impliedValuePerShare)} />
-              <Metric label="Terminal Value" value={formatMoney(dcf.terminalValue)} />
-            </div>
-          </section>
-        ) : null}
-
-        {exports?.length ? (
-          <section style={cardStyle}>
-            <h2 style={{ marginTop: 0 }}>Export History</h2>
-            <div style={{ display: "grid", gap: 10 }}>
-              {exports.map((item) => (
-                <div key={item.id} style={exportRowStyle}>
-                  <div><strong>{item.export_type.toUpperCase()}</strong></div>
-                  <div>{item.file_name || "—"}</div>
-                  <div>{formatDateTime(item.created_at)}</div>
-                </div>
-              ))}
-            </div>
-          </section>
-        ) : null}
 
         <section style={cardStyle}>
           <h2 style={{ marginTop: 0 }}>AI Equity Research Report</h2>
@@ -309,13 +310,6 @@ function formatPercent(v) {
   const n = Number(v);
   if (!Number.isFinite(n)) return "—";
   return `${n.toFixed(2)}%`;
-}
-
-function formatDateTime(value) {
-  if (!value) return "—";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return String(value);
-  return d.toLocaleString("en-US");
 }
 
 const pageStyle = {
@@ -418,17 +412,22 @@ const reportBoxStyle = {
   borderRadius: 10
 };
 
-const exportRowStyle = {
-  display: "grid",
-  gridTemplateColumns: "120px 1fr 220px",
-  gap: 16,
-  padding: "12px 14px",
-  borderRadius: 10,
-  background: "#f8fbff"
+const subTitleStyle = {
+  marginTop: 0,
+  marginBottom: 8,
+  color: "#0b1f3b",
+  fontSize: 20,
 };
 
-const tableStyle = {
-  width: "100%",
-  borderCollapse: "collapse",
-  fontSize: 14,
+const bodyTextStyle = {
+  color: "#24364f",
+  lineHeight: 1.7,
+  margin: 0,
+};
+
+const listStyle = {
+  color: "#24364f",
+  lineHeight: 1.8,
+  marginTop: 0,
+  paddingLeft: 20,
 };
