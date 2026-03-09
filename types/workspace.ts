@@ -162,3 +162,20 @@ export interface CompanyWorkspaceTerminalViewModel {
   reports: ReportRun[];
   activity: WorkspaceActivity[];
 }
+
+export interface CreateWorkspaceNoteInput {
+  title: string;
+  bodyMd: string;
+  isPinned?: boolean;
+}
+
+export interface CreateWorkspaceDocumentInput {
+  title: string;
+  kind: WorkspaceDocumentKind;
+  sourceUrl?: string | null;
+  sourceProvider?: string | null;
+  mimeType?: string | null;
+  storagePath?: string | null;
+  fileSizeBytes?: number | null;
+  metadata?: Record<string, unknown>;
+}
