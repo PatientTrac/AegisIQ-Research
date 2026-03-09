@@ -1,4 +1,5 @@
 import React from 'react';
+import type { Readable } from 'node:stream';
 import { pdf } from '@react-pdf/renderer';
 import EquityResearchPdfDocument, {
   type EquityResearchPdfData,
@@ -358,21 +359,42 @@ function normalizeAppendixImages(
     );
 }
 
-async function toUint8Array(
-  result: Uint8Array | ReadableStream<Uint8Array>,
-): Promise<Uint8Array> {
-  if (result instanceof Uint8Array) {
-    return result;
-  }
+function isWebReadableStream(value: unknown): value is ReadableStream<Uint8Array> {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'getReader' in value &&
+    typeof (value as { getReader?: unknown }).getReader === 'function'
+  );
+}
 
-  const reader = result.getReader();
-  const chunks: Uint8Array[] = [];
+function isNodeReadable(value: unknown): value is Readable {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'pipe' in value &&
+    typeof (value as { pipe?: unknown }).pipe === 'function'
+  );
+}
 
-  while (true) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    if (value) chunks.push(value);
+function chunkToUint8Array(chunk: unknown): Uint8Array {
+  if (chunk instanceof Uint8Array) return chunk;
+  if (typeof Buffer !== 'undefined' && Buffer.isBuffer(chunk)) {
+    return new Uint8Array(chunk);
   }
+  if (chunk instanceof ArrayBuffer) return new Uint8Array(chunk);
+  if (ArrayBuffer.isView(chunk)) {
+    return new Uint8Array(chunk.buffer, chunk.byteOffset, chunk.byteLength);
+  }
+  if (typeof chunk === 'string') {
+    return new TextEncoder().encode(chunk);
+  }
+  throw new TypeError('Unsupported PDF stream chunk type.');
+}
+
+function concatUint8Arrays(chunks: Uint8Array[]): Uint8Array {
+  if (chunks.length === 0) return new Uint8Array(0);
+  if (chunks.length === 1) return chunks[0];
 
   const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
   const merged = new Uint8Array(totalLength);
@@ -384,6 +406,35 @@ async function toUint8Array(
   }
 
   return merged;
+}
+
+async function toUint8Array(result: unknown): Promise<Uint8Array> {
+  if (result instanceof Uint8Array) {
+    return result;
+  }
+
+  if (isNodeReadable(result)) {
+    const chunks: Uint8Array[] = [];
+    for await (const chunk of result) {
+      chunks.push(chunkToUint8Array(chunk));
+    }
+    return concatUint8Arrays(chunks);
+  }
+
+  if (isWebReadableStream(result)) {
+    const reader = result.getReader();
+    const chunks: Uint8Array[] = [];
+
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      if (value) chunks.push(chunkToUint8Array(value));
+    }
+
+    return concatUint8Arrays(chunks);
+  }
+
+  throw new TypeError('Unsupported PDF output type from @react-pdf/renderer.');
 }
 
 export function mapReportToPdfData(
