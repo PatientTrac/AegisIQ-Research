@@ -1,36 +1,36 @@
+const { neon } = require("@neondatabase/serverless");
+
 exports.handler = async function handler(event) {
   try {
     if (event.httpMethod !== "POST") {
-      return jsonResponse(405, { error: "Method not allowed." });
+      return response(405, { error: "Method not allowed" });
     }
 
-    const contentType =
-      event.headers["content-type"] || event.headers["Content-Type"] || "";
+    const sql = neon(process.env.DATABASE_URL);
 
-    if (!contentType.includes("multipart/form-data")) {
-      return jsonResponse(400, {
-        error: "Expected multipart/form-data submission.",
-      });
-    }
+    const ticker = "UNKNOWN";
+    const period = "UNKNOWN";
 
-    return jsonResponse(200, {
-      message: "Request received.",
-      requestId: `REQ-${Date.now()}`,
-      note: "Next step is to parse the uploaded Excel file and save to database.",
+    const result = await sql`
+      INSERT INTO report_requests (ticker, period, status)
+      VALUES (${ticker}, ${period}, 'pending')
+      RETURNING id
+    `;
+
+    return response(200, {
+      message: "Report request saved",
+      requestId: result[0].id
     });
+
   } catch (error) {
-    return jsonResponse(500, {
-      error: error.message || "Server error.",
-    });
+    return response(500, { error: error.message });
   }
 };
 
-function jsonResponse(statusCode, payload) {
+function response(statusCode, body) {
   return {
     statusCode,
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(payload),
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
   };
 }
