@@ -1,5 +1,6 @@
 const { neon } = require("@neondatabase/serverless");
 const { buildHistoryAnalytics } = require("../../lib/reportAnalytics");
+const { assertReportOwner } = require("../../lib/accessControl");
 
 exports.handler = async function handler(event) {
   try {
@@ -8,8 +9,15 @@ exports.handler = async function handler(event) {
     }
 
     const id = event.queryStringParameters?.id;
+    const userId = event.queryStringParameters?.userId;
+
     if (!id) {
       return response(400, { error: "Missing report request id." });
+    }
+
+    const ownership = await assertReportOwner({ reportId: id, userId });
+    if (!ownership.allowed) {
+      return response(403, { error: ownership.reason || "Access denied." });
     }
 
     const sql = neon(process.env.DATABASE_URL);
@@ -24,6 +32,11 @@ exports.handler = async function handler(event) {
         row_count,
         created_at,
         ai_report,
+        ai_thesis,
+        ai_risks,
+        ai_catalysts,
+        ai_recommendation_summary,
+        ai_generated_at,
         analyst_rating,
         target_low,
         target_base,
@@ -39,15 +52,12 @@ exports.handler = async function handler(event) {
         market_cap,
         live_price,
         price_change_pct,
-        market_data_updated_at
+        market_data_updated_at,
+        user_id
       FROM report_requests
       WHERE id = ${id}
       LIMIT 1
     `;
-
-    if (!requests.length) {
-      return response(404, { error: "Report request not found." });
-    }
 
     const request = requests[0];
 
@@ -82,7 +92,11 @@ exports.handler = async function handler(event) {
     const analytics = buildHistoryAnalytics(history);
 
     return response(200, {
-      request,
+      request: {
+        ...request,
+        ai_risks: parseJsonArray(request.ai_risks),
+        ai_catalysts: parseJsonArray(request.ai_catalysts),
+      },
       analytics,
       narrative: {
         headline: `${request.ticker} preliminary quantitative summary`,
@@ -101,6 +115,16 @@ exports.handler = async function handler(event) {
     return response(500, { error: error.message || "Server error." });
   }
 };
+
+function parseJsonArray(value) {
+  if (!value) return [];
+  try {
+    const parsed = typeof value === "string" ? JSON.parse(value) : value;
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (error) {
+    return [];
+  }
+}
 
 function response(statusCode, body) {
   return {
