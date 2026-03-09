@@ -101,7 +101,7 @@ export default function HomePage() {
               margin: "0 0 14px 0",
             }}
           >
-            Upload market history and launch an equity research workflow.
+            Upload market history and build an equity research workflow.
           </h1>
 
           <p
@@ -113,9 +113,8 @@ export default function HomePage() {
               margin: 0,
             }}
           >
-            Enter the stock ticker, upload the investor.com Excel history file,
-            select the time period, and create an AegisIQ research request for
-            valuation, analytics, AI narrative, and PDF report generation.
+            Start with historical price uploads, then enrich the report with live
+            company profile data, quotes, peer selection, AI narrative, and PDF export.
           </p>
 
           <div
@@ -249,14 +248,14 @@ export default function HomePage() {
                 border: "1px solid rgba(255,255,255,0.12)",
               }}
             >
-              <h3 style={{ marginTop: 0, fontSize: "24px" }}>What this step does</h3>
+              <h3 style={{ marginTop: 0, fontSize: "24px" }}>What this build adds</h3>
 
               <div style={{ display: "grid", gap: "14px", lineHeight: 1.6 }}>
-                <div><strong>1.</strong> Captures the stock ticker.</div>
-                <div><strong>2.</strong> Uploads the Excel history file.</div>
-                <div><strong>3.</strong> Labels the dataset as 1Y, 3Y, or 5Y.</div>
-                <div><strong>4.</strong> Sends the request to a Netlify Function.</div>
-                <div><strong>5.</strong> Stores the submission for analytics, AI narrative, and PDF report generation.</div>
+                <div><strong>1.</strong> Historical Excel upload intake.</div>
+                <div><strong>2.</strong> Live market profile refresh.</div>
+                <div><strong>3.</strong> Automatic peer selection.</div>
+                <div><strong>4.</strong> AI report narrative and PDF export.</div>
+                <div><strong>5.</strong> Published report archive.</div>
               </div>
             </div>
 
@@ -276,13 +275,13 @@ export default function HomePage() {
                 <div>↓</div>
                 <div>Save request into Neon</div>
                 <div>↓</div>
-                <div>Run analytics and valuation</div>
+                <div>Refresh live quote and company profile</div>
+                <div>↓</div>
+                <div>Auto-select peers</div>
                 <div>↓</div>
                 <div>Generate AI research narrative</div>
                 <div>↓</div>
-                <div>Export PDF report</div>
-                <div>↓</div>
-                <div>Publish report into AegisIQ library</div>
+                <div>Export PDF and publish report</div>
               </div>
 
               <a href="/reports" style={sideLinkStyle}>
