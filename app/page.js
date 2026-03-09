@@ -63,7 +63,7 @@ export default function HomePage() {
     >
       <div
         style={{
-          maxWidth: "980px",
+          maxWidth: "1100px",
           margin: "0 auto",
           display: "grid",
           gap: "28px",
@@ -101,31 +101,51 @@ export default function HomePage() {
               margin: "0 0 14px 0",
             }}
           >
-            Generate stock research requests in one clean workflow.
+            Upload market history and launch an equity research workflow.
           </h1>
 
           <p
             style={{
               fontSize: "18px",
               lineHeight: 1.6,
-              maxWidth: "760px",
+              maxWidth: "820px",
               color: "rgba(255,255,255,0.82)",
               margin: 0,
             }}
           >
-            Enter the ticker, upload the investor.com price-history Excel file,
-            choose the period, and submit the request for report generation.
+            Enter the stock ticker, upload the investor.com Excel history file,
+            select the time period, and create an AegisIQ research request for
+            valuation, analytics, AI narrative, and PDF report generation.
           </p>
+
+          <div
+            style={{
+              display: "flex",
+              gap: "14px",
+              flexWrap: "wrap",
+              marginTop: "22px",
+            }}
+          >
+            <a href="/dashboard" style={heroLinkPrimary}>
+              View Report Dashboard
+            </a>
+
+            <a href="#new-request" style={heroLinkSecondary}>
+              Create New Request
+            </a>
+          </div>
         </section>
 
         <section
           style={{
             display: "grid",
-            gridTemplateColumns: "1.2fr 0.8fr",
+            gridTemplateColumns: "1.15fr 0.85fr",
             gap: "24px",
+            alignItems: "start",
           }}
         >
           <div
+            id="new-request"
             style={{
               borderRadius: "20px",
               padding: "28px",
@@ -236,48 +256,64 @@ export default function HomePage() {
             ) : null}
           </div>
 
-          <div
-            style={{
-              borderRadius: "20px",
-              padding: "28px",
-              background: "rgba(255,255,255,0.08)",
-              color: "#ffffff",
-              border: "1px solid rgba(255,255,255,0.12)",
-            }}
-          >
-            <h3 style={{ marginTop: 0, fontSize: "24px" }}>What this step does</h3>
+          <div style={{ display: "grid", gap: "24px" }}>
+            <div
+              style={{
+                borderRadius: "20px",
+                padding: "28px",
+                background: "rgba(255,255,255,0.08)",
+                color: "#ffffff",
+                border: "1px solid rgba(255,255,255,0.12)",
+              }}
+            >
+              <h3 style={{ marginTop: 0, fontSize: "24px" }}>What this step does</h3>
 
-            <div style={{ display: "grid", gap: "14px", lineHeight: 1.6 }}>
-              <div>
-                <strong>1.</strong> Captures the stock ticker.
-              </div>
-              <div>
-                <strong>2.</strong> Uploads the Excel history file.
-              </div>
-              <div>
-                <strong>3.</strong> Labels the dataset as 1Y, 3Y, or 5Y.
-              </div>
-              <div>
-                <strong>4.</strong> Sends the request to a Netlify Function.
-              </div>
-              <div>
-                <strong>5.</strong> Stores the submission for the next build phase.
+              <div style={{ display: "grid", gap: "14px", lineHeight: 1.6 }}>
+                <div>
+                  <strong>1.</strong> Captures the stock ticker.
+                </div>
+                <div>
+                  <strong>2.</strong> Uploads the Excel history file.
+                </div>
+                <div>
+                  <strong>3.</strong> Labels the dataset as 1Y, 3Y, or 5Y.
+                </div>
+                <div>
+                  <strong>4.</strong> Sends the request to a Netlify Function.
+                </div>
+                <div>
+                  <strong>5.</strong> Stores the submission for analytics, AI narrative,
+                  and PDF report generation.
+                </div>
               </div>
             </div>
 
             <div
               style={{
-                marginTop: "24px",
-                padding: "16px",
-                borderRadius: "14px",
+                borderRadius: "20px",
+                padding: "28px",
                 background: "rgba(255,255,255,0.08)",
-                fontSize: "14px",
-                lineHeight: 1.6,
-                color: "rgba(255,255,255,0.86)",
+                color: "#ffffff",
+                border: "1px solid rgba(255,255,255,0.12)",
               }}
             >
-              This does not generate the final report yet. It creates the first
-              working intake screen for AegisIQ.
+              <h3 style={{ marginTop: 0, fontSize: "24px" }}>Current platform flow</h3>
+
+              <div style={{ display: "grid", gap: "12px", lineHeight: 1.6 }}>
+                <div>Upload stock history</div>
+                <div>↓</div>
+                <div>Save request into Neon</div>
+                <div>↓</div>
+                <div>Run analytics and valuation</div>
+                <div>↓</div>
+                <div>Generate AI research narrative</div>
+                <div>↓</div>
+                <div>Export PDF report</div>
+              </div>
+
+              <a href="/dashboard" style={sideLinkStyle}>
+                Open saved report history →
+              </a>
             </div>
           </div>
         </section>
@@ -299,4 +335,33 @@ const fileInputStyle = {
   ...inputStyle,
   padding: "12px",
   background: "#ffffff",
+};
+
+const heroLinkPrimary = {
+  display: "inline-block",
+  padding: "12px 18px",
+  borderRadius: "10px",
+  background: "#ffffff",
+  color: "#0b3d91",
+  textDecoration: "none",
+  fontWeight: 700,
+};
+
+const heroLinkSecondary = {
+  display: "inline-block",
+  padding: "12px 18px",
+  borderRadius: "10px",
+  background: "rgba(255,255,255,0.08)",
+  color: "#ffffff",
+  textDecoration: "none",
+  fontWeight: 700,
+  border: "1px solid rgba(255,255,255,0.14)",
+};
+
+const sideLinkStyle = {
+  display: "inline-block",
+  marginTop: "18px",
+  color: "#ffffff",
+  fontWeight: 700,
+  textDecoration: "none",
 };
