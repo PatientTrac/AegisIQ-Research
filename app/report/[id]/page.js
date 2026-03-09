@@ -3,163 +3,232 @@
 import { useEffect, useState } from "react";
 
 export default function ReportPage({ params }) {
-const [data, setData] = useState(null);
-const [aiReport, setAiReport] = useState("");
-const [loading, setLoading] = useState(false);
+  const [data, setData] = useState(null);
+  const [aiReport, setAiReport] = useState("");
+  const [loadingAI, setLoadingAI] = useState(false);
+  const [loadingPDF, setLoadingPDF] = useState(false);
 
-const id = params.id;
+  const id = params.id;
 
-useEffect(() => {
-loadReport();
-}, []);
+  useEffect(() => {
+    loadReport();
+  }, []);
 
-async function loadReport() {
-const res = await fetch(`/.netlify/functions/get-report-summary?id=${id}`);
-const json = await res.json();
-setData(json);
-}
+  async function loadReport() {
+    const res = await fetch(`/.netlify/functions/get-report-summary?id=${id}`);
+    const json = await res.json();
+    setData(json);
+  }
 
-async function generateAIReport() {
-setLoading(true);
+  async function generateAIReport() {
+    try {
+      setLoadingAI(true);
+      const res = await fetch(`/.netlify/functions/generate-report?id=${id}`);
+      const json = await res.json();
+      setAiReport(json.report || "No report generated.");
+    } finally {
+      setLoadingAI(false);
+    }
+  }
 
-```
-const res = await fetch(`/.netlify/functions/generate-report?id=${id}`);
-const json = await res.json();
+  async function downloadPDF() {
+    try {
+      setLoadingPDF(true);
+      window.open(`/.netlify/functions/export-report-pdf?id=${id}`, "_blank");
+    } finally {
+      setLoadingPDF(false);
+    }
+  }
 
-setAiReport(json.report || "No report generated.");
-setLoading(false);
-```
-
-}
-
-if (!data) {
-return ( <main style={pageStyle}> <div style={cardStyle}> <h2>Loading report...</h2> </div> </main>
-);
-}
-
-const { request, analytics } = data;
-
-return ( <main style={pageStyle}>
-<div style={{ maxWidth: 1100, margin: "0 auto", display: "grid", gap: 24 }}>
-
-```
-    <section style={heroStyle}>
-      <h1 style={{ margin: 0 }}>
-        {request.ticker} Research Summary
-      </h1>
-
-      <p style={{ marginTop: 10 }}>
-        Period: {request.period} | Rows Uploaded: {analytics.rows}
-      </p>
-    </section>
-
-    <section style={gridStyle}>
-      <Metric label="First Close" value={formatMoney(analytics.firstClose)} />
-      <Metric label="Last Close" value={formatMoney(analytics.lastClose)} />
-      <Metric label="Return %" value={formatPercent(analytics.percentChange)} />
-      <Metric label="Volatility" value={formatPercent(analytics.volatilityAnnualized)} />
-    </section>
-
-    <section style={gridStyle}>
-      <Metric label="SMA 20" value={formatMoney(analytics.sma20)} />
-      <Metric label="SMA 50" value={formatMoney(analytics.sma50)} />
-      <Metric label="Highest High" value={formatMoney(analytics.highMax)} />
-      <Metric label="Lowest Low" value={formatMoney(analytics.lowMin)} />
-    </section>
-
-    <section style={cardStyle}>
-      <h2>AI Equity Research Report</h2>
-
-      <button
-        onClick={generateAIReport}
-        style={buttonStyle}
-      >
-        {loading ? "Generating..." : "Generate AI Research Report"}
-      </button>
-
-      {aiReport && (
-        <div style={reportBoxStyle}>
-          <pre style={{ whiteSpace: "pre-wrap", lineHeight: 1.6 }}>
-            {aiReport}
-          </pre>
+  if (!data) {
+    return (
+      <main style={pageStyle}>
+        <div style={cardStyle}>
+          <h2>Loading report...</h2>
         </div>
-      )}
-    </section>
+      </main>
+    );
+  }
 
-  </div>
-</main>
-```
+  const { request, analytics, narrative } = data;
 
-);
+  return (
+    <main style={pageStyle}>
+      <div style={{ maxWidth: 1140, margin: "0 auto", display: "grid", gap: 24 }}>
+        <section style={heroStyle}>
+          <div style={badgeStyle}>AegisIQ Equity Research</div>
+          <h1 style={{ margin: "12px 0 8px 0", fontSize: 42 }}>
+            {request.ticker} Research Summary
+          </h1>
+          <p style={{ margin: 0, color: "rgba(255,255,255,0.84)", fontSize: 18 }}>
+            Period: {request.period} · Rows Uploaded: {analytics.rows}
+          </p>
+        </section>
+
+        <section style={gridStyle}>
+          <Metric label="First Close" value={formatMoney(analytics.firstClose)} />
+          <Metric label="Last Close" value={formatMoney(analytics.lastClose)} />
+          <Metric label="Return %" value={formatPercent(analytics.percentChange)} />
+          <Metric label="Volatility" value={formatPercent(analytics.volatilityAnnualized)} />
+        </section>
+
+        <section style={gridStyle}>
+          <Metric label="SMA 20" value={formatMoney(analytics.sma20)} />
+          <Metric label="SMA 50" value={formatMoney(analytics.sma50)} />
+          <Metric label="Highest High" value={formatMoney(analytics.highMax)} />
+          <Metric label="Lowest Low" value={formatMoney(analytics.lowMin)} />
+        </section>
+
+        <section style={cardStyle}>
+          <h2 style={{ marginTop: 0 }}>Initial Thesis</h2>
+          <p style={{ lineHeight: 1.7, color: "#24364f" }}>
+            {narrative?.thesis || "No thesis available yet."}
+          </p>
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16, marginTop: 18 }}>
+            <Metric label="Low Case" value={formatMoney(narrative?.targetRange?.low)} />
+            <Metric label="Base Case" value={formatMoney(narrative?.targetRange?.base)} />
+            <Metric label="High Case" value={formatMoney(narrative?.targetRange?.high)} />
+          </div>
+
+          <div style={{ display: "flex", gap: 14, marginTop: 24, flexWrap: "wrap" }}>
+            <button onClick={generateAIReport} style={primaryButtonStyle}>
+              {loadingAI ? "Generating..." : "Generate AI Research Report"}
+            </button>
+
+            <button onClick={downloadPDF} style={secondaryButtonStyle}>
+              {loadingPDF ? "Preparing PDF..." : "Download PDF Report"}
+            </button>
+          </div>
+        </section>
+
+        <section style={cardStyle}>
+          <h2 style={{ marginTop: 0 }}>AI Equity Research Report</h2>
+          {!aiReport ? (
+            <p style={{ color: "#5d6b82" }}>
+              Generate the AI research report to display the narrative here.
+            </p>
+          ) : (
+            <div style={reportBoxStyle}>
+              <pre style={{ whiteSpace: "pre-wrap", lineHeight: 1.7, margin: 0 }}>
+                {aiReport}
+              </pre>
+            </div>
+          )}
+        </section>
+
+        <section style={cardStyle}>
+          <h2 style={{ marginTop: 0 }}>Request Metadata</h2>
+          <div style={{ display: "grid", gap: 8, color: "#24364f", lineHeight: 1.7 }}>
+            <div><strong>Request ID:</strong> {request.id}</div>
+            <div><strong>Status:</strong> {request.status}</div>
+            <div><strong>Original File:</strong> {request.original_filename || "—"}</div>
+            <div><strong>Created:</strong> {formatDateTime(request.created_at)}</div>
+          </div>
+        </section>
+      </div>
+    </main>
+  );
 }
 
 function Metric({ label, value }) {
-return ( <div style={metricCardStyle}>
-<div style={{ fontSize: 12, color: "#6b7a90" }}>{label}</div>
-<div style={{ fontSize: 22, fontWeight: 700 }}>{value}</div> </div>
-);
+  return (
+    <div style={metricCardStyle}>
+      <div style={{ fontSize: 12, color: "#6b7a90", marginBottom: 6 }}>{label}</div>
+      <div style={{ fontSize: 22, fontWeight: 700 }}>{value}</div>
+    </div>
+  );
 }
 
 function formatMoney(v) {
-const n = Number(v);
-if (!Number.isFinite(n)) return "—";
-return new Intl.NumberFormat("en-US", {
-style: "currency",
-currency: "USD"
-}).format(n);
+  const n = Number(v);
+  if (!Number.isFinite(n)) return "—";
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD"
+  }).format(n);
 }
 
 function formatPercent(v) {
-const n = Number(v);
-if (!Number.isFinite(n)) return "—";
-return `${n.toFixed(2)}%`;
+  const n = Number(v);
+  if (!Number.isFinite(n)) return "—";
+  return `${n.toFixed(2)}%`;
+}
+
+function formatDateTime(value) {
+  if (!value) return "—";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return String(value);
+  return d.toLocaleString("en-US");
 }
 
 const pageStyle = {
-minHeight: "100vh",
-padding: 40,
-background: "linear-gradient(135deg,#07111f,#0b1f3b)"
+  minHeight: "100vh",
+  padding: 40,
+  background: "linear-gradient(135deg,#07111f,#0b1f3b,#123d6b)"
 };
 
 const heroStyle = {
-color: "white",
-padding: 30,
-borderRadius: 20,
-background: "rgba(255,255,255,0.08)"
+  color: "white",
+  padding: 30,
+  borderRadius: 20,
+  background: "rgba(255,255,255,0.08)",
+  border: "1px solid rgba(255,255,255,0.12)"
+};
+
+const badgeStyle = {
+  display: "inline-block",
+  padding: "8px 12px",
+  borderRadius: 999,
+  background: "rgba(255,255,255,0.12)",
+  fontSize: 12,
+  textTransform: "uppercase",
+  letterSpacing: "0.08em"
 };
 
 const gridStyle = {
-display: "grid",
-gridTemplateColumns: "repeat(4,1fr)",
-gap: 16
+  display: "grid",
+  gridTemplateColumns: "repeat(4,1fr)",
+  gap: 16
 };
 
 const cardStyle = {
-background: "white",
-padding: 28,
-borderRadius: 18
+  background: "white",
+  padding: 28,
+  borderRadius: 18,
+  boxShadow: "0 18px 50px rgba(0,0,0,0.18)"
 };
 
 const metricCardStyle = {
-background: "white",
-padding: 20,
-borderRadius: 16
+  background: "white",
+  padding: 20,
+  borderRadius: 16,
+  boxShadow: "0 18px 50px rgba(0,0,0,0.18)"
 };
 
-const buttonStyle = {
-marginTop: 10,
-padding: "12px 18px",
-fontSize: 16,
-background: "#0b3d91",
-color: "white",
-border: "none",
-borderRadius: 8,
-cursor: "pointer"
+const primaryButtonStyle = {
+  padding: "12px 18px",
+  fontSize: 16,
+  background: "#0b3d91",
+  color: "white",
+  border: "none",
+  borderRadius: 8,
+  cursor: "pointer"
+};
+
+const secondaryButtonStyle = {
+  padding: "12px 18px",
+  fontSize: 16,
+  background: "#ffffff",
+  color: "#0b3d91",
+  border: "1px solid #0b3d91",
+  borderRadius: 8,
+  cursor: "pointer"
 };
 
 const reportBoxStyle = {
-marginTop: 20,
-padding: 20,
-background: "#f6f8fb",
-borderRadius: 10
+  marginTop: 10,
+  padding: 20,
+  background: "#f6f8fb",
+  borderRadius: 10
 };
