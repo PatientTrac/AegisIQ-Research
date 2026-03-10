@@ -175,7 +175,10 @@ function normalizeDescription(value?: string | null): string | null {
   return trimmed.slice(0, 1000);
 }
 
-async function shouldBecomeDefaultPreset(clerkUserId: string, requestedDefault?: boolean): Promise<boolean> {
+async function shouldBecomeDefaultPreset(
+  clerkUserId: string,
+  requestedDefault?: boolean,
+): Promise<boolean> {
   if (requestedDefault) {
     return true;
   }
@@ -189,7 +192,10 @@ async function shouldBecomeDefaultPreset(clerkUserId: string, requestedDefault?:
   return Number(rows[0]?.count ?? "0") === 0;
 }
 
-async function shouldBecomeDefaultWatchlist(clerkUserId: string, requestedDefault?: boolean): Promise<boolean> {
+async function shouldBecomeDefaultWatchlist(
+  clerkUserId: string,
+  requestedDefault?: boolean,
+): Promise<boolean> {
   if (requestedDefault) {
     return true;
   }
@@ -203,7 +209,10 @@ async function shouldBecomeDefaultWatchlist(clerkUserId: string, requestedDefaul
   return Number(rows[0]?.count ?? "0") === 0;
 }
 
-async function clearOtherDefaultPresets(clerkUserId: string, activePresetId?: string): Promise<void> {
+async function clearOtherDefaultPresets(
+  clerkUserId: string,
+  activePresetId?: string,
+): Promise<void> {
   if (activePresetId) {
     await sql`
       UPDATE screener_presets
@@ -226,7 +235,10 @@ async function clearOtherDefaultPresets(clerkUserId: string, activePresetId?: st
   `;
 }
 
-async function clearOtherDefaultWatchlists(clerkUserId: string, activeWatchlistId?: string): Promise<void> {
+async function clearOtherDefaultWatchlists(
+  clerkUserId: string,
+  activeWatchlistId?: string,
+): Promise<void> {
   if (activeWatchlistId) {
     await sql`
       UPDATE watchlists
@@ -249,7 +261,9 @@ async function clearOtherDefaultWatchlists(clerkUserId: string, activeWatchlistI
   `;
 }
 
-export async function listScreenerPresets(clerkUserId: string): Promise<ScreenerPresetRecord[]> {
+export async function listScreenerPresets(
+  clerkUserId: string,
+): Promise<ScreenerPresetRecord[]> {
   const rows = await sql<ScreenerPresetRow[]>`
     SELECT
       id,
@@ -389,7 +403,10 @@ export async function updateScreenerPreset(
   return rows[0] ? mapPreset(rows[0]) : null;
 }
 
-export async function deleteScreenerPreset(clerkUserId: string, presetId: string): Promise<boolean> {
+export async function deleteScreenerPreset(
+  clerkUserId: string,
+  presetId: string,
+): Promise<boolean> {
   const existingRows = await sql<{ is_default: boolean }[]>`
     SELECT is_default
     FROM screener_presets
@@ -437,7 +454,9 @@ export async function deleteScreenerPreset(clerkUserId: string, presetId: string
   return true;
 }
 
-export async function listWatchlists(clerkUserId: string): Promise<WatchlistRecord[]> {
+export async function listWatchlists(
+  clerkUserId: string,
+): Promise<WatchlistRecord[]> {
   const rows = await sql<WatchlistRow[]>`
     SELECT
       id,
@@ -553,7 +572,10 @@ export async function updateWatchlist(
   return rows[0] ? mapWatchlist(rows[0]) : null;
 }
 
-export async function deleteWatchlist(clerkUserId: string, watchlistId: string): Promise<boolean> {
+export async function deleteWatchlist(
+  clerkUserId: string,
+  watchlistId: string,
+): Promise<boolean> {
   const existingRows = await sql<{ is_default: boolean }[]>`
     SELECT is_default
     FROM watchlists
