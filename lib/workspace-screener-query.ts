@@ -29,8 +29,6 @@ export type WorkspaceScreenerQueryResult = {
 export async function runWorkspaceScreenerQuery(
   _input: WorkspaceScreenerQueryInput,
 ): Promise<WorkspaceScreenerQueryResult> {
-
-  // keep connection warm but do nothing yet
   await sql`select 1`;
 
   return {
@@ -48,3 +46,5 @@ export async function runWorkspaceScreenerQuery(
     total: 0,
   };
 }
+
+export const runWorkspaceScreener = runWorkspaceScreenerQuery;
