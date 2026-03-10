@@ -1,6 +1,7 @@
 "use server";
 
 import { auth } from "@clerk/nextjs/server";
+import { getStore } from "@netlify/blobs";
 import { revalidatePath } from "next/cache";
 import {
   createWorkspaceDocument,
@@ -9,8 +10,12 @@ import {
   updateWorkspaceNote,
 } from "../../../lib/workspace-repository";
 import {
+  assertSupportedWorkspaceDocumentFile,
   buildWorkspaceDocumentMetadata,
+  buildWorkspaceDocumentStoragePath,
+  inferDocumentTitleFromFilename,
   inferWorkspaceDocumentSourceProvider,
+  WORKSPACE_DOCUMENTS_STORE_NAME,
 } from "../../../lib/workspace-document-storage";
 import type { WorkspaceDocumentKind } from "../../../types/workspace";
 
@@ -160,6 +165,72 @@ export async function createWorkspaceDocumentAction(
       uploadedBy: userId,
       storageProvider: sourceProvider,
       sourceUrl,
+      storagePath,
+    }),
+  });
+
+  revalidatePath(`/workspace/${symbol}`);
+  revalidatePath(`/api/workspaces/${symbol}`);
+  revalidatePath(`/api/workspaces/${symbol}/documents`);
+}
+
+export async function uploadWorkspaceDocumentAction(
+  formData: FormData,
+): Promise<void> {
+  const { userId } = await auth();
+
+  if (!userId) {
+    throw new Error("Unauthorized.");
+  }
+
+  const symbol = normalizeSymbol(getRequiredString(formData.get("symbol")));
+  const kind = assertAllowedKind(getRequiredString(formData.get("kind")));
+  const fileEntry = formData.get("file");
+
+  if (!(fileEntry instanceof File)) {
+    throw new Error("A document file is required.");
+  }
+
+  assertSupportedWorkspaceDocumentFile(fileEntry);
+
+  const explicitTitle = getOptionalString(formData.get("title"));
+  const title = explicitTitle ?? inferDocumentTitleFromFilename(fileEntry.name);
+  const storagePath = buildWorkspaceDocumentStoragePath({
+    clerkUserId: userId,
+    symbol,
+    kind,
+    filename: fileEntry.name,
+  });
+
+  const store = getStore({
+    name: WORKSPACE_DOCUMENTS_STORE_NAME,
+    consistency: "strong",
+  });
+
+  await store.set(storagePath, fileEntry, {
+    metadata: {
+      symbol,
+      kind,
+      uploadedBy: userId,
+      originalFilename: fileEntry.name,
+      mimeType: fileEntry.type,
+      fileSizeBytes: fileEntry.size,
+    },
+  });
+
+  await createWorkspaceDocument(userId, symbol, {
+    title,
+    kind,
+    sourceProvider: "netlify_blobs",
+    sourceUrl: null,
+    storagePath,
+    mimeType: fileEntry.type,
+    fileSizeBytes: fileEntry.size,
+    metadata: buildWorkspaceDocumentMetadata({
+      originalFilename: fileEntry.name,
+      uploadedBy: userId,
+      storageProvider: "netlify_blobs",
+      sourceUrl: null,
       storagePath,
     }),
   });
