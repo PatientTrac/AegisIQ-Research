@@ -5,8 +5,8 @@ import { revalidatePath } from "next/cache";
 import {
   createWorkspaceDocument,
   createWorkspaceNote,
-} from "@/lib/workspace-repository";
-import type { WorkspaceDocumentKind } from "@/types/workspace";
+} from "../../../lib/workspace-repository";
+import type { WorkspaceDocumentKind } from "../../../types/workspace";
 
 function getRequiredString(value: FormDataEntryValue | null): string {
   return typeof value === "string" ? value : "";
