@@ -3,6 +3,7 @@ import type { CompanyWorkspaceTerminalViewModel } from "../../types/workspace";
 import {
   createWorkspaceDocumentAction,
   createWorkspaceNoteAction,
+  deleteWorkspaceNoteAction,
   updateWorkspaceNoteAction,
 } from "../../app/workspace/[symbol]/actions";
 
@@ -348,6 +349,51 @@ function EditNoteForm({
   );
 }
 
+function DeleteNoteForm({
+  symbol,
+  noteId,
+}: {
+  symbol: string;
+  noteId: string;
+}) {
+  return (
+    <details className="mt-3 rounded-xl border border-red-500/20 bg-red-500/[0.04]">
+      <summary className="cursor-pointer list-none px-3 py-2 text-xs font-medium uppercase tracking-[0.14em] text-red-300 hover:text-red-200">
+        Delete Note
+      </summary>
+      <form
+        action={deleteWorkspaceNoteAction}
+        className="grid gap-3 border-t border-red-500/20 p-3"
+      >
+        <input type="hidden" name="symbol" value={symbol} />
+        <input type="hidden" name="noteId" value={noteId} />
+
+        <div className="text-xs text-slate-400">
+          Type <span className="font-semibold text-red-200">DELETE</span> to
+          confirm permanent removal.
+        </div>
+
+        <input
+          name="confirmation"
+          required
+          maxLength={12}
+          className="rounded-xl border border-white/10 bg-[#111827] px-3 py-2 text-sm text-white outline-none ring-0"
+          placeholder="DELETE"
+        />
+
+        <div>
+          <button
+            type="submit"
+            className="inline-flex items-center rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-2 text-sm font-medium text-red-100 transition hover:bg-red-500/20"
+          >
+            Confirm Delete
+          </button>
+        </div>
+      </form>
+    </details>
+  );
+}
+
 export function CompanyWorkspaceTerminal({
   data,
 }: CompanyWorkspaceTerminalProps) {
@@ -594,6 +640,11 @@ export function CompanyWorkspaceTerminal({
                       title={note.title}
                       bodyMd={note.bodyMd}
                       isPinned={note.isPinned}
+                    />
+
+                    <DeleteNoteForm
+                      symbol={data.workspace.symbol}
+                      noteId={note.id}
                     />
                   </div>
                 ))}
