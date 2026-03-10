@@ -7,6 +7,12 @@ export type WorkspaceDocumentKind =
   | "memo"
   | "other";
 
+export type WorkspaceDocumentSourceProvider =
+  | "external_url"
+  | "netlify_blobs"
+  | "manual"
+  | "unknown";
+
 export type WorkspaceActivityKind =
   | "workspace_created"
   | "note_created"
@@ -58,7 +64,7 @@ export interface WorkspaceDocument {
   sourceUrl: string | null;
   storagePath: string | null;
   mimeType: string | null;
-  sourceProvider: string | null;
+  sourceProvider: WorkspaceDocumentSourceProvider | null;
   fileSizeBytes: number | null;
   metadata: Record<string, unknown>;
   createdAt: string;
@@ -174,7 +180,7 @@ export interface CreateWorkspaceDocumentInput {
   title: string;
   kind: WorkspaceDocumentKind;
   sourceUrl?: string | null;
-  sourceProvider?: string | null;
+  sourceProvider?: WorkspaceDocumentSourceProvider | null;
   mimeType?: string | null;
   storagePath?: string | null;
   fileSizeBytes?: number | null;
