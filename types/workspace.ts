@@ -11,6 +11,7 @@ export type WorkspaceActivityKind =
   | "workspace_created"
   | "note_created"
   | "note_updated"
+  | "note_deleted"
   | "document_added"
   | "report_generated"
   | "valuation_saved"
