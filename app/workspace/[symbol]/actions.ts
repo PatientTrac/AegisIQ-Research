@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import {
   createWorkspaceDocument,
   createWorkspaceNote,
+  updateWorkspaceNote,
 } from "../../../lib/workspace-repository";
 import type { WorkspaceDocumentKind } from "../../../types/workspace";
 
@@ -36,10 +37,7 @@ function assertAllowedKind(value: string): WorkspaceDocumentKind {
 
 export async function createWorkspaceNoteAction(formData: FormData): Promise<void> {
   const { userId } = await auth();
-
-  if (!userId) {
-    throw new Error("Unauthorized.");
-  }
+  if (!userId) throw new Error("Unauthorized.");
 
   const symbol = normalizeSymbol(getRequiredString(formData.get("symbol")));
   const title = getRequiredString(formData.get("title"));
@@ -57,14 +55,34 @@ export async function createWorkspaceNoteAction(formData: FormData): Promise<voi
   revalidatePath(`/api/workspaces/${symbol}/notes`);
 }
 
+export async function updateWorkspaceNoteAction(formData: FormData): Promise<void> {
+
+  const { userId } = await auth();
+  if (!userId) throw new Error("Unauthorized.");
+
+  const symbol = normalizeSymbol(getRequiredString(formData.get("symbol")));
+  const noteId = getRequiredString(formData.get("noteId"));
+  const title = getRequiredString(formData.get("title"));
+  const bodyMd = getRequiredString(formData.get("bodyMd"));
+  const isPinned = getRequiredString(formData.get("isPinned")) === "on";
+
+  await updateWorkspaceNote(userId, symbol, noteId, {
+    title,
+    bodyMd,
+    isPinned,
+  });
+
+  revalidatePath(`/workspace/${symbol}`);
+  revalidatePath(`/api/workspaces/${symbol}`);
+  revalidatePath(`/api/workspaces/${symbol}/notes`);
+}
+
 export async function createWorkspaceDocumentAction(
   formData: FormData,
 ): Promise<void> {
-  const { userId } = await auth();
 
-  if (!userId) {
-    throw new Error("Unauthorized.");
-  }
+  const { userId } = await auth();
+  if (!userId) throw new Error("Unauthorized.");
 
   const symbol = normalizeSymbol(getRequiredString(formData.get("symbol")));
   const title = getRequiredString(formData.get("title"));
