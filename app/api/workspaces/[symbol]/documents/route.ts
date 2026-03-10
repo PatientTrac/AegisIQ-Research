@@ -1,15 +1,33 @@
-import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
+import { NextResponse } from "next/server";
 import {
   createWorkspaceDocument,
   getWorkspaceDocuments,
 } from "../../../../../lib/workspace-repository";
-import type { WorkspaceDocumentKind } from "../../../../../types/workspace";
+import {
+  buildWorkspaceDocumentMetadata,
+  normalizeWorkspaceDocumentSourceProvider,
+} from "../../../../../lib/workspace-document-storage";
+import type {
+  CreateWorkspaceDocumentInput,
+  WorkspaceDocumentKind,
+} from "../../../../../types/workspace";
 
 interface RouteContext {
   params: Promise<{
     symbol: string;
   }>;
+}
+
+interface CreateWorkspaceDocumentRequestBody {
+  title?: unknown;
+  kind?: unknown;
+  sourceUrl?: unknown;
+  sourceProvider?: unknown;
+  mimeType?: unknown;
+  storagePath?: unknown;
+  fileSizeBytes?: unknown;
+  metadata?: unknown;
 }
 
 function normalizeSymbol(symbol: string): string {
@@ -20,7 +38,34 @@ function isValidSymbol(symbol: string): boolean {
   return /^[A-Z0-9.\-]{1,12}$/.test(symbol);
 }
 
-function normalizeKind(value: string | undefined): WorkspaceDocumentKind {
+function asOptionalString(value: unknown): string | null {
+  return typeof value === "string" && value.trim().length > 0
+    ? value.trim()
+    : null;
+}
+
+function asOptionalNumber(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value) && value >= 0) {
+    return value;
+  }
+
+  if (typeof value === "string" && value.trim().length > 0) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+  }
+
+  return null;
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+
+  return {};
+}
+
+function normalizeKind(value: unknown): WorkspaceDocumentKind {
   const allowed: WorkspaceDocumentKind[] = [
     "report",
     "filing",
@@ -31,7 +76,7 @@ function normalizeKind(value: string | undefined): WorkspaceDocumentKind {
     "other",
   ];
 
-  if (value && allowed.includes(value as WorkspaceDocumentKind)) {
+  if (typeof value === "string" && allowed.includes(value as WorkspaceDocumentKind)) {
     return value as WorkspaceDocumentKind;
   }
 
@@ -40,7 +85,7 @@ function normalizeKind(value: string | undefined): WorkspaceDocumentKind {
 
 export const dynamic = "force-dynamic";
 
-export async function GET(_: Request, context: RouteContext) {
+export async function GET(_request: Request, context: RouteContext) {
   const { userId } = await auth();
 
   if (!userId) {
@@ -56,7 +101,10 @@ export async function GET(_: Request, context: RouteContext) {
 
   const documents = await getWorkspaceDocuments(userId, symbol);
 
-  return NextResponse.json({ documents });
+  return NextResponse.json({
+    symbol,
+    documents,
+  });
 }
 
 export async function POST(request: Request, context: RouteContext) {
@@ -73,28 +121,65 @@ export async function POST(request: Request, context: RouteContext) {
     return NextResponse.json({ error: "Invalid symbol." }, { status: 400 });
   }
 
-  const body = (await request.json()) as {
-    title?: string;
-    kind?: string;
-    sourceUrl?: string | null;
-    sourceProvider?: string | null;
-    mimeType?: string | null;
-    storagePath?: string | null;
-    fileSizeBytes?: number | null;
-    metadata?: Record<string, unknown>;
+  let body: CreateWorkspaceDocumentRequestBody;
+
+  try {
+    body = (await request.json()) as CreateWorkspaceDocumentRequestBody;
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
+  }
+
+  const title = asOptionalString(body.title);
+
+  if (!title) {
+    return NextResponse.json(
+      { error: "Document title is required." },
+      { status: 400 },
+    );
+  }
+
+  const sourceUrl = asOptionalString(body.sourceUrl);
+  const storagePath = asOptionalString(body.storagePath);
+  const mimeType = asOptionalString(body.mimeType);
+  const fileSizeBytes = asOptionalNumber(body.fileSizeBytes);
+
+  const sourceProviderInput =
+    typeof body.sourceProvider === "string" ? body.sourceProvider : null;
+
+  const sourceProvider = normalizeWorkspaceDocumentSourceProvider(
+    sourceProviderInput,
+  );
+
+  const metadataInput = asRecord(body.metadata);
+
+  const payload: CreateWorkspaceDocumentInput = {
+    title,
+    kind: normalizeKind(body.kind),
+    sourceUrl,
+    sourceProvider,
+    mimeType,
+    storagePath,
+    fileSizeBytes,
+    metadata: buildWorkspaceDocumentMetadata({
+      existingMetadata: metadataInput,
+      uploadedBy: userId,
+      storageProvider: sourceProvider,
+      sourceUrl,
+      storagePath,
+      originalFilename:
+        typeof metadataInput.originalFilename === "string"
+          ? metadataInput.originalFilename
+          : null,
+    }),
   };
 
-  const document = await createWorkspaceDocument(userId, symbol, {
-    title: body.title ?? "",
-    kind: normalizeKind(body.kind),
-    sourceUrl: body.sourceUrl ?? null,
-    sourceProvider: body.sourceProvider ?? null,
-    mimeType: body.mimeType ?? null,
-    storagePath: body.storagePath ?? null,
-    fileSizeBytes:
-      typeof body.fileSizeBytes === "number" ? body.fileSizeBytes : null,
-    metadata: body.metadata ?? {},
-  });
+  const document = await createWorkspaceDocument(userId, symbol, payload);
 
-  return NextResponse.json({ document }, { status: 201 });
+  return NextResponse.json(
+    {
+      symbol,
+      document,
+    },
+    { status: 201 },
+  );
 }
