@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
-import { getWorkspaceReports } from "@/lib/workspace-repository";
+import { getWorkspaceReports } from "../../../../../lib/workspace-repository";
 
 interface RouteContext {
   params: Promise<{
