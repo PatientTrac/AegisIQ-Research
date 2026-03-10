@@ -91,7 +91,7 @@ function mapDocument(row: Record<string, unknown>): WorkspaceDocument {
     sourceUrl: asStringOrNull(row.source_url),
     storagePath: asStringOrNull(row.storage_path),
     mimeType: asStringOrNull(row.mime_type),
-    sourceProvider: asStringOrNull(row.source_provider),
+    sourceProvider: asStringOrNull(row.source_provider) as WorkspaceDocument["sourceProvider"],
     fileSizeBytes: asNumberOrNull(row.file_size_bytes),
     metadata: asRecord(row.metadata),
     createdAt: String(row.created_at),
@@ -495,6 +495,10 @@ export async function createWorkspaceDocument(
   }
 
   const safeMetadata: JsonValue = input.metadata ?? {};
+  const detail =
+    input.sourceUrl ??
+    input.storagePath ??
+    null;
 
   const documentRows = await sql<Record<string, unknown>[]>`
     INSERT INTO workspace_documents (
@@ -542,13 +546,16 @@ export async function createWorkspaceDocument(
       ${clerkUserId},
       'document_added',
       ${`Document linked: ${title}`},
-      ${input.sourceUrl ?? null},
+      ${detail},
       'workspace_document',
       ${document.id},
       ${sql.json(
         {
           kind: input.kind,
           sourceProvider: input.sourceProvider ?? null,
+          sourceUrl: input.sourceUrl ?? null,
+          storagePath: input.storagePath ?? null,
+          fileSizeBytes: input.fileSizeBytes ?? null,
         } as never
       )}
     )
