@@ -1,0 +1,13 @@
+[
+  {
+    "id": "sec_aapl",
+    "symbol": "AAPL",
+    "companyName": "Apple Inc.",
+    "exchange": "NASDAQ",
+    "country": "United States",
+    "currency": "USD",
+    "securityType": "Equity",
+    "sector": "Technology",
+    "industry": "Consumer Electronics"
+  }
+]
