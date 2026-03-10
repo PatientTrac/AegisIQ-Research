@@ -11,7 +11,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "seed:securities": "tsx scripts/seed-securities.ts"
+    "seed:securities": "tsx scripts/seed-securities.ts",
+    "load:security-master": "tsx scripts/load-security-master.ts"
   },
 
   "dependencies": {
