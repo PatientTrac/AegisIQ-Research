@@ -1,26 +1,34 @@
 import { NextResponse } from "next/server";
+import {
+  runWorkspaceScreener,
+  type WorkspaceScreenerFilters,
+} from "@/lib/workspace-screener-query";
 
-import { runWorkspaceScreener } from "@/lib/workspace-screener-query";
+type WorkspaceScreenerRunBody = {
+  workspaceId?: string;
+  filters?: WorkspaceScreenerFilters;
+  limit?: number;
+};
 
-export async function POST(request: Request) {
+function normalizeLimit(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+export async function POST(req: Request) {
   try {
-    const body = (await request.json()) as { filters?: unknown; limit?: unknown };
+    const body = (await req.json()) as WorkspaceScreenerRunBody;
 
     const response = await runWorkspaceScreener({
+      workspaceId: body?.workspaceId,
       filters: body?.filters,
-      limit: body?.limit,
+      limit: normalizeLimit(body?.limit),
     });
 
     return NextResponse.json(response, { status: 200 });
   } catch (error) {
-    console.error("screener.run.failed", error);
+    const message =
+      error instanceof Error ? error.message : "Failed to run workspace screener.";
 
-    return NextResponse.json(
-      {
-        ok: false,
-        error: "Unable to run screener request.",
-      },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
